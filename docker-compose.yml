@@ -38,7 +38,7 @@ services:
             bash -c "
             echo 'Database is healthy. Proceeding...' &&
             echo 'Attempting Composer install...' &&
-            composer install --no-interaction --optimize-autoloader --no-dev &&
+            composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist --optimize-autoloader &&
             echo 'Generating key...' &&
             php artisan key:generate --force &&
             echo 'Running migrations...' &&
