@@ -22,8 +22,29 @@ jobs:
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.PORT }}
           script: |
+            # O'zgaruvchan muhit sozlamalari
+            export PATH=$PATH:/usr/local/bin
+
+            # Kerakli katalogga o'tish
             cd /var/www/fitness
-            git pull origin main
+
+            # Git repository ni tekshirish va yangilash
+            if [ ! -d .git ]; then
+              echo "Git repository topilmadi, yangi clone qilinmoqda..."
+              cd ..
+              rm -rf fitness
+              git clone https://github.com/abdu11aev-samandar/fitness.git fitness
+              cd fitness
+            else
+              git pull origin main
+            fi
+
+            # Docker-compose mavjudligini tekshirish va o'rnatish
+            if ! command -v docker-compose &> /dev/null; then
+              echo "docker-compose o'rnatilmoqda..."
+              sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+            fi
 
             # Docker Compose orqali ishga tushirish
             docker-compose down --remove-orphans
@@ -31,12 +52,14 @@ jobs:
             docker-compose up -d
 
             # Laravel ilovani optimize qilish uchun container ichida buyruqlarni bajarish
-            docker-compose exec -T php bash -c "
-              php -r "file_exists('.env') || copy('.env.example', '.env')
+            docker-compose exec -T php bash -c '
+              if [ ! -f .env ]; then
+                cp .env.example .env
+              fi
               composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist --optimize-autoloader
               php artisan key:generate
               chmod -R 777 storage bootstrap/cache
               php artisan optimize:clear
               php artisan optimize
               php artisan route:cache
-            "
+            '
