@@ -1,0 +1,94 @@
+# <llm-snippet-file>docker-compose.yml</llm-snippet-file>
+version: '3.8'
+services:
+    web:
+        container_name: web-fitness
+        image: nginx:latest
+        networks:
+            - default
+        ports:
+            - "1050:80"
+        volumes:
+            - ./:/fitness
+            - ./docker/ngnix/default.conf:/etc/nginx/conf.d/default.conf
+        depends_on:
+            php:
+                condition: service_started # php ishga tushgandan keyin
+            database:
+                condition: service_healthy # database sog'lom bo'lgandan keyin
+
+    php:
+        build:
+            context: ./docker/php
+            dockerfile: Dockerfile
+        container_name: php-fitness
+        working_dir: /fitness/
+        restart: always
+        networks:
+            - default
+        volumes:
+            - ./:/fitness
+            - ./docker/php/php.ini:/usr/local/etc/php/php.ini:ro
+        expose:
+            - "9000"
+        depends_on:
+            database:
+                condition: service_healthy # Database sog'lom bo'lishini kutish
+        command: >
+            bash -c "
+            echo 'Database is healthy. Proceeding...' &&
+            echo 'Attempting Composer install...' &&
+            composer install --no-interaction --optimize-autoloader --no-dev &&
+            echo 'Generating key...' &&
+            php artisan key:generate --force &&
+            echo 'Running migrations...' &&
+            php artisan migrate --force &&
+            echo 'Starting PHP-FPM...' &&
+            docker-php-entrypoint php-fpm
+            "
+
+    database:
+        container_name: database-fitness
+        image: mysql:5.7
+        restart: always
+        ports:
+            - "3346:3306" # Host:Container
+        networks:
+            - default
+        environment:
+            # Bu qiymatlar .env faylingizga mos kelishiga ishonch hosil qiling
+            MYSQL_DATABASE: ${DB_DATABASE:-fitness}
+            MYSQL_USER: ${DB_USERNAME:-fitness}
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-fitness}
+            MYSQL_PASSWORD: ${DB_PASSWORD:-fitness}
+        volumes:
+            - ./docker/data:/docker-entrypoint-initdb.d
+            - persistent:/var/lib/mysql # Ma'lumotlar bazasi ma'lumotlarini saqlash uchun
+        healthcheck:
+            # MySQL tayyorligini tekshirish uchun test buyrug'i
+            # Esda tuting: $$MYSQL_USER va $$MYSQL_PASSWORD dan foydalanish kerak, chunki docker-compose o'zgaruvchilarni kengaytiradi
+            test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost", "-u${DB_USERNAME:-fitness}", "-p${DB_PASSWORD:-fitness}" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 5s # Boshlang'ich ishga tushirish uchun vaqt berish
+
+    phpmyadmin:
+        image: phpmyadmin
+        container_name: phpmyadmin-fitness
+        networks:
+            - default
+        restart: always
+        depends_on:
+            database:
+                condition: service_healthy # Database sog'lom bo'lishini kutish
+        ports:
+            - "1051:80"
+        environment:
+            PMA_HOST: database # database xizmat nomiga ulanish
+            PMA_USER: ${DB_USERNAME:-fitness}
+            PMA_PASSWORD: ${DB_PASSWORD:-fitness}
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-fitness} # PMA sozlamalari uchun kerak bo'lishi mumkin
+
+volumes:
+    persistent: # database tomonidan ishlatiladigan nomlangan volume ni aniqlash
