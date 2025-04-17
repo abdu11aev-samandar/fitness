@@ -21,6 +21,7 @@ jobs:
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.PORT }}
+          timeout: 60m  # Timeout vaqtini 60 daqiqagacha oshiramiz
           script: |
             # O'zgaruvchan muhit sozlamalari
             export PATH=$PATH:/usr/local/bin
@@ -46,12 +47,31 @@ jobs:
               sudo chmod +x /usr/local/bin/docker-compose
             fi
 
-            # Docker Compose orqali ishga tushirish
+            # Docker Compose orqali ishga tushirish (detach rejimida)
+            echo "Eski konteynerlarni to'xtatish..."
             docker-compose down --remove-orphans
-            docker-compose build --no-cache
-            docker-compose up -d
+            echo "Yangi konteynerlarni ishga tushirish..."
+            docker-compose up -d --build
 
-            # Laravel ilovani optimize qilish uchun container ichida buyruqlarni bajarish
+            # Konteynerlar tayyor bo'lishini kutish
+            echo "PHP konteynerini ishga tushirish kutilmoqda..."
+            attempt=0
+            max_attempts=30
+            until docker-compose ps | grep php | grep "Up" || [ $attempt -eq $max_attempts ]
+            do
+              echo "PHP konteynerini kutish: $attempt/$max_attempts"
+              sleep 10
+              attempt=$((attempt+1))
+            done
+
+            if [ $attempt -eq $max_attempts ]; then
+              echo "PHP konteyner ishga tushmadi, bajarish davom etmoqda..."
+            else
+              echo "PHP konteyner ishga tushdi!"
+            fi
+
+            # PHP container ichida kerakli buyruqlarni bajarish
+            echo "Laravel ilovani sozlash..."
             docker-compose exec -T php bash -c '
               if [ ! -f .env ]; then
                 cp .env.example .env
@@ -63,3 +83,5 @@ jobs:
               php artisan optimize
               php artisan route:cache
             '
+
+            echo "Deployment jarayoni tugadi."
