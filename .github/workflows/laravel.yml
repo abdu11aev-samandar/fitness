@@ -78,6 +78,7 @@ jobs:
               fi
               composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist --optimize-autoloader
               php artisan key:generate
+              php artisan migrate --force
               chmod -R 777 storage bootstrap/cache
               php artisan optimize:clear
               php artisan optimize

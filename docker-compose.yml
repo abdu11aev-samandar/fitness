@@ -34,18 +34,18 @@ services:
         depends_on:
             database:
                 condition: service_healthy # Database sog'lom bo'lishini kutish
-        command: >
-            bash -c "
-            echo 'Database is healthy. Proceeding...' &&
-            echo 'Attempting Composer install...' &&
-            composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist --optimize-autoloader &&
-            echo 'Generating key...' &&
-            php artisan key:generate --force &&
-            echo 'Running migrations...' &&
-            php artisan migrate --force &&
-            echo 'Starting PHP-FPM...' &&
-            docker-php-entrypoint php-fpm
-            "
+#        command: >
+#            bash -c "
+#            echo 'Database is healthy. Proceeding...' &&
+#            echo 'Attempting Composer install...' &&
+#            composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist --optimize-autoloader &&
+#            echo 'Generating key...' &&
+#            php artisan key:generate --force &&
+#            echo 'Running migrations...' &&
+#            php artisan migrate --force &&
+#            echo 'Starting PHP-FPM...' &&
+#            docker-php-entrypoint php-fpm
+#            "
 
     database:
         container_name: database-fitness
